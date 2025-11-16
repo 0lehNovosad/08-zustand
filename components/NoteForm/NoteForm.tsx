@@ -1,121 +1,115 @@
-'use client';
+"use client";
 
-import { useState, useId } from 'react';
-import { useRouter } from 'next/navigation';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'react-hot-toast';
-import { initialDraft, useDraftNoteStore } from '@/lib/store/noteStore';
-import css from './NoteForm.module.css';
-import { createNote, CreateNoteData } from '@/lib/api';
-import Loading from '@/app/loading';
-
-const tagsList = ['Work', 'Personal', 'Meeting', 'Shopping', 'Todo'];
+import { useRouter } from "next/navigation";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, ChangeEvent, FormEvent } from "react";
+import { createNote } from "@/lib/api";
+import { useNoteStore } from "@/lib/store/noteStore";
+import css from "./NoteForm.module.css";
 
 export default function NoteForm() {
-  const [isDisabled, setIsDisabled] = useState(false);
-  const fieldId = useId();
-  const queryClient = useQueryClient();
   const router = useRouter();
-  const { draft, setDraft, clearDraft } = useDraftNoteStore();
+  const qc = useQueryClient();
+  const { draft, setDraft, clearDraft } = useNoteStore();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleInput = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
-  ) => {
-    setDraft({
-      ...draft,
-      [e.target.name]: e.target.value,
-    });
-  };
-
-  const newNote = useMutation({
+  const mutation = useMutation({
     mutationFn: createNote,
     onSuccess: () => {
-      toast.success('Note added!', { position: 'bottom-center' });
-      queryClient.invalidateQueries({ queryKey: ['notes'] });
-      clearDraft();
-      router.push('/notes/filter/all');
+      qc.invalidateQueries({ queryKey: ["notes"] });
     },
   });
 
-  const handleSubmit = (formData: FormData) => {
-    if (formData) {
-      const values = Object.fromEntries(formData) as unknown as CreateNoteData;
-      setIsDisabled(!isDisabled);
-      newNote.mutate(values);
+  const handleChange = (
+    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = e.target;
+    setDraft({ [name]: value });
+  };
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    try {
+      await mutation.mutateAsync({
+        title: draft.title,
+        content: draft.content,
+        tag: draft.tag,
+      });
+      clearDraft();        // очистити draft лише після успішного створення
+      router.back();       // повернутися на попередню сторінку
+    } catch (err) {
+      console.error("Failed to create note:", err);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleCancel = () => router.push('/notes/filter/all');
+  const handleCancel = () => {
+    router.back(); // draft НЕ очищаємо — так вимагає ТЗ
+  };
 
   return (
-    <>
-      <form className={css.form} action={handleSubmit}>
-        <div className={css.formGroup}>
-          <label htmlFor={`${fieldId}-title`}>Title</label>
-          <input
-            id={`${fieldId}-title`}
-            type="text"
-            name="title"
-            className={css.input}
-            value={draft?.title ?? initialDraft.title}
-            onChange={handleInput}
-            minLength={3}
-            maxLength={50}
-            required
-          />
-        </div>
+    <form onSubmit={handleSubmit} className={css.form}>
+      <div className={css.formGroup}>
+        <label htmlFor="title">Title</label>
+        <input
+          id="title"
+          name="title"
+          value={draft.title}
+          onChange={handleChange}
+          className={css.input}
+          required
+        />
+      </div>
 
-        <div className={css.formGroup}>
-          <label htmlFor={`${fieldId}-content`}>Content</label>
-          <textarea
-            id={`${fieldId}-content`}
-            name="content"
-            rows={8}
-            className={css.textarea}
-            value={draft?.content ?? initialDraft.content}
-            onChange={handleInput}
-            maxLength={500}
-          />
-        </div>
+      <div className={css.formGroup}>
+        <label htmlFor="content">Content</label>
+        <textarea
+          id="content"
+          name="content"
+          value={draft.content}
+          onChange={handleChange}
+          className={css.textarea}
+          rows={6}
+          required
+        />
+      </div>
 
-        <div className={css.formGroup}>
-          <label htmlFor={`${fieldId}-tag`}>Tag</label>
-          <select
-            id={`${fieldId}-tag`}
-            name="tag"
-            className={css.select}
-            value={draft.tag ?? initialDraft.tag}
-            onChange={handleInput}
-            required
-          >
-            {tagsList.map((tag, i) => (
-              <option key={i} value={tag}>
-                {tag}
-              </option>
-            ))}
-          </select>
-        </div>
+      <div className={css.formGroup}>
+        <label htmlFor="tag">Tag</label>
+        <select
+  id="tag"
+  name="tag"
+  value={draft.tag}
+  onChange={handleChange}
+  className={css.select}
+>
+  <option value="Work">Work</option>
+  <option value="Personal">Personal</option>
+  <option value="Todo">Todo</option>
+  <option value="Meeting">Meeting</option>
+  <option value="Shopping">Shopping</option>
+</select>
+      </div>
 
-        <div className={css.actions}>
-          <button
-            type="button"
-            className={css.cancelButton}
-            onClick={handleCancel}
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            className={css.submitButton}
-            disabled={isDisabled}
-          >
-            Create note
-          </button>
-        </div>
-      </form>
-      {newNote.isPending && <Loading />}
-    </>
+      <div className={css.actions}>
+        <button
+          type="button"
+          className={css.cancelButton}
+          onClick={handleCancel}
+          disabled={isSubmitting}
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          className={css.submitButton}
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? "Creating..." : "Create note"}
+        </button>
+      </div>
+    </form>
   );
 }

@@ -1,46 +1,63 @@
-import css from './Modal.module.css';
-import { useEffect } from 'react';
-import { createPortal } from 'react-dom';
+"use client";
 
-interface ModalProps {
+import { ReactNode, useEffect } from "react";
+import css from "./Modal.module.css";
+
+export default function Modal({
+  open,
+  onClose,
+  children,
+}: {
+  open: boolean;
   onClose: () => void;
-  children: React.ReactNode;
-}
-
-export default function Modal({ onClose, children }: ModalProps) {
-  const handleModalBackdropClick = (
-    event: React.MouseEvent<HTMLDivElement>
-  ) => {
-    if (event.target === event.currentTarget) {
-      onClose();
-    }
-  };
-
+  children: ReactNode;
+}) {
   useEffect(() => {
-    const handleKeyDown = (ev: KeyboardEvent) => {
-      if (ev.key === 'Escape') {
-        onClose();
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    if (typeof window !== "undefined") {
+      window.addEventListener("keydown", onKey);
+    }
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("keydown", onKey);
       }
     };
+  }, [open, onClose]);
 
-    document.addEventListener('keydown', handleKeyDown);
-    document.body.style.overflow = 'hidden';
+  if (!open) return null;
 
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = '';
-    };
-  }, [onClose]);
+  const stop = (e: React.MouseEvent<HTMLDivElement>) => e.stopPropagation();
 
-  return createPortal(
+  return (
     <div
       className={css.backdrop}
+      onClick={onClose}
       role="dialog"
       aria-modal="true"
-      onClick={handleModalBackdropClick}
     >
-      <div className={css.modal}>{children}</div>
-    </div>,
-    document.body
+      <div className={css.modal} onClick={stop}>
+        <button
+          onClick={onClose}
+          aria-label="Close"
+          style={{
+            position: "absolute",
+            top: 10,
+            right: 12,
+            background: "transparent",
+            border: "none",
+            fontSize: 20,
+            color: "#6c757d",
+            cursor: "pointer",
+            lineHeight: 1,
+          }}
+        >
+          ×
+        </button>
+        {children}
+      </div>
+    </div>
   );
 }

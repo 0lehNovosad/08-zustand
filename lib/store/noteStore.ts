@@ -1,30 +1,37 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import { CreateNoteData } from '../api';
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
-interface DraftNoteStore {
-  draft: CreateNoteData;
-  setDraft: (note: CreateNoteData) => void;
+type NoteTag = "Work" | "Personal" | "Todo" | "Meeting" | "Shopping";
+
+interface Draft {
+  title: string;
+  content: string;
+  tag: NoteTag;
+}
+
+interface NoteStore {
+  draft: Draft;
+  setDraft: (note: Partial<Draft>) => void;
   clearDraft: () => void;
 }
 
-export const initialDraft: CreateNoteData = {
-  title: '',
-  content: '',
-  tag: 'Todo',
+const initialDraft: Draft = {
+  title: "",
+  content: "",
+  tag: "Todo", // виправлено: було "Work"
 };
 
-export const useDraftNoteStore = create<DraftNoteStore>()(
+export const useNoteStore = create<NoteStore>()(
   persist(
-    set => ({
+    (set) => ({
       draft: initialDraft,
-      setDraft: note => set(() => ({ draft: note })),
-      clearDraft: () => set(() => ({ draft: initialDraft })),
+      setDraft: (note) =>
+        set((state) => ({ draft: { ...state.draft, ...note } })),
+      clearDraft: () => set({ draft: initialDraft }),
     }),
     {
-      // Ключ у localStorage
-      name: 'note-draft',
-      partialize: state => ({ draft: state.draft }),
+      name: "note-draft-storage",
+      partialize: (state) => ({ draft: state.draft }), //  зберігається лише draft
     }
   )
 );

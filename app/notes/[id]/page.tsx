@@ -1,56 +1,62 @@
-// app/notes/[id]/page.tsx
+import { QueryClient, dehydrate, HydrationBoundary } from "@tanstack/react-query";
+import { fetchNoteById } from "@/lib/api";
+import type { Metadata } from "next";
+import NoteDetailsClient from "./NoteDetails.client";
 
-import { Metadata } from 'next';
-import {
-  QueryClient,
-  HydrationBoundary,
-  dehydrate,
-} from '@tanstack/react-query';
-import { fetchNoteById } from '@/lib/api';
-import NoteDetailsClient from './NoteDetails.client';
-
-interface NoteProps {
-  params: Promise<{ id: string }>;
-}
-
+// ----------------------------------------------------------------
+// SEO metadata (await params – тепер обовʼязково у Next.js 15)
 export async function generateMetadata({
   params,
-}: NoteProps): Promise<Metadata> {
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
   const { id } = await params;
   const note = await fetchNoteById(id);
+
+  const title = `NoteHub — ${note.title}`;
+  const description =
+    note.content?.slice(0, 160) || "View note details in NoteHub.";
+  const url = `${
+    process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"
+  }/notes/${id}`;
+
   return {
-    title: `Note: ${note.title} `,
-    description: `${note.content.slice(0, 32)}`,
+    title,
+    description,
     openGraph: {
-      title: `Note: ${note.title} `,
-      description: `${note.content.slice(0, 32)}`,
-      url: `https://notehub.com/notes/${id}`,
+      title,
+      description,
+      url,
       images: [
         {
-          url: 'https://ac.goit.global/fullstack/react/notehub-og-meta.jpg',
+          url: "https://ac.goit.global/fullstack/react/notehub-og-meta.jpg",
           width: 1200,
           height: 630,
-          alt: 'NoteHub',
+          alt: "NoteHub",
         },
       ],
     },
   };
 }
 
-const NoteDetails = async ({ params }: NoteProps) => {
-  const { id } = await params;
-  const queryClient = new QueryClient();
+// ----------------------------------------------------------------
+// Сторінка з hydration React Query (також params як Promise)
+export default async function NoteDetailsPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params; // ✅ розпаковуємо проміс
 
-  await queryClient.prefetchQuery({
-    queryKey: ['note', id],
+  const qc = new QueryClient();
+  await qc.prefetchQuery({
+    queryKey: ["note", id],
     queryFn: () => fetchNoteById(id),
   });
 
   return (
-    <HydrationBoundary state={dehydrate(queryClient)}>
-      <NoteDetailsClient />
+    <HydrationBoundary state={dehydrate(qc)}>
+      <NoteDetailsClient id={id} />
     </HydrationBoundary>
   );
-};
-
-export default NoteDetails;
+}

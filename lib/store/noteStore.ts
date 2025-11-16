@@ -1,35 +1,30 @@
-import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import { CreateNoteData } from '../api';
 
-export type Tag = "Todo" | "Work" | "Personal" | "Meeting" | "Shopping";
-
-export type Draft = {
-  title: string;
-  content: string;
-  tag: Tag;
-};
-
-export const initialDraft: Draft = {
-  title: "",
-  content: "",
-  tag: "Todo",
-};
-
-type NoteStore = {
-  draft: Draft;
-  setDraft: (patch: Partial<Draft>) => void;
+interface DraftNoteStore {
+  draft: CreateNoteData;
+  setDraft: (note: CreateNoteData) => void;
   clearDraft: () => void;
+}
+
+export const initialDraft: CreateNoteData = {
+  title: '',
+  content: '',
+  tag: 'Todo',
 };
 
-export const useNoteStore = create<NoteStore>()(
+export const useDraftNoteStore = create<DraftNoteStore>()(
   persist(
-    (set) => ({
+    set => ({
       draft: initialDraft,
-      setDraft: (patch) => set((s) => ({ draft: { ...s.draft, ...patch } })),
-      clearDraft: () => set({ draft: initialDraft }),
+      setDraft: note => set(() => ({ draft: note })),
+      clearDraft: () => set(() => ({ draft: initialDraft })),
     }),
     {
-      name: "notehub-draft", // localStorage key
-    },
-  ),
+      // Ключ у localStorage
+      name: 'note-draft',
+      partialize: state => ({ draft: state.draft }),
+    }
+  )
 );

@@ -1,5 +1,19 @@
-"use client";
+// app/notes/error.tsx
 
-export default function Error({ error }: { error: Error }) {
-  return <p>Could not fetch the list of notes. {error.message}</p>;
+'use client';
+
+interface Props {
+  error: Error;
+  reset: () => void;
 }
+
+const Error = ({ error, reset }: Props) => {
+  return (
+    <div>
+      <p>Could not fetch the list of notes. {error.message}</p>
+      <button onClick={reset}>Try again</button>
+    </div>
+  );
+};
+
+export default Error;

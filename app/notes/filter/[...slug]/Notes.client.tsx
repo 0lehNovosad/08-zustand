@@ -1,87 +1,67 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import Link from "next/link";
-import { fetchNotes, type PaginatedNotesResponse } from "@/lib/api";
-import SearchBox from "@/components/SearchBox/SearchBox";
-import Pagination from "@/components/Pagination/Pagination";
-import NoteList from "@/components/NoteList/NoteList";
-import css from "./NotesPage.module.css";
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useDebouncedCallback } from 'use-debounce';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
+import { Toaster, toast } from 'react-hot-toast';
+import css from './NotesPage.module.css';
+import { fetchNotes } from '@/lib/api';
+import NoteList from '@/components/NoteList/NoteList';
+import SearchBox from '@/components/SearchBox/SearchBox';
+import Pagination from '@/components/Pagination/Pagination';
+import Loading from '@/app/loading';
+import Error from './error';
 
-export default function NotesClient({
-  initialQ,
-  initialPage,
-  tag,
-}: {
-  initialQ?: string;
-  initialPage: number;
-  tag: string | null;
-}) {
-  const [search, setSearch] = useState(initialQ ?? "");
-  const [debouncedQ, setDebouncedQ] = useState(initialQ ?? "");
-  const [page, setPage] = useState(initialPage || 1);
+interface NotesClientProps {
+  tag: string;
+}
 
-  // debounce поиска
+export default function NotesClient({ tag }: NotesClientProps) {
+  const [search, setSearch] = useState<string>('');
+  const [page, setPage] = useState<number>(1);
+  const router = useRouter();
+
+  const { data, error, isSuccess, isError, isLoading } = useQuery({
+    queryKey: ['notes', search, page, tag],
+    queryFn: () => fetchNotes(search, page, tag),
+    placeholderData: keepPreviousData,
+  });
+
+  const totalPages = data?.totalPages ?? 0;
+  const totalNotes = data?.notes?.length ?? 0;
+
   useEffect(() => {
-    const t = setTimeout(() => {
-      setDebouncedQ(search.trim());
-      setPage(1);
-    }, 400);
-    return () => clearTimeout(t);
-  }, [search]);
+    if (isSuccess && totalNotes === 0) {
+      toast.error('No notes found for your request.', { duration: 1000 });
+    }
+  }, [isSuccess, totalNotes]);
 
-  const { data, isLoading, error, isFetching } =
-    useQuery<PaginatedNotesResponse>({
-      queryKey: ["notes", { q: debouncedQ, page, tag: tag ?? "" }],
-      queryFn: () => fetchNotes({ q: debouncedQ, page, tag: tag ?? undefined }),
-      placeholderData: keepPreviousData,
-      refetchOnWindowFocus: false,
-    });
+  const updateSearchQuery = useDebouncedCallback((value: string) => {
+    setPage(1);
+    setSearch(value);
+  }, 400);
 
-  if (isLoading) return <p>Loading, please wait...</p>;
-  if (error)
-    return <p>Could not fetch the list of notes. {(error as Error).message}</p>;
-
-  const notes = data?.notes ?? [];
-  const totalPages = data?.totalPages ?? 1;
-
-  return (
+    return (
     <div className={css.app}>
+      <Toaster />
       <div className={css.toolbar}>
-        <div style={{ flex: "1 1 520px", maxWidth: 520 }}>
-          <SearchBox
-            value={search}
-            onChange={setSearch}
-            placeholder="Search notes..."
-          />
-        </div>
-
-        {/* ссылка на страницу создания */}
-        <Link href="/notes/action/create" className={css.button}>
-          Create note
-        </Link>
+        <SearchBox value={search} onChange={updateSearchQuery} />
+        {isSuccess && totalPages > 1 && (
+          <Pagination page={page} totalPages={totalPages} setPage={setPage} />
+        )}
+        <button
+          className={css.button}
+          onClick={() => router.push('/notes/action/create')}
+        >
+          Create note +
+        </button>
       </div>
-
-      {notes.length === 0 ? (
-        <p>No notes found.</p>
-      ) : (
-        <>
-          {/* удаление выполняется внутри NoteList через useMutation + invalidate */}
-          <NoteList notes={notes} />
-
-          {totalPages > 1 && (
-            <div className={css.paginationWrap}>
-              <Pagination
-                pageCount={totalPages}
-                currentPage={page}
-                onPageChange={(p) => setPage(p)}
-                isFetchingPage={isFetching}
-              />
-            </div>
-          )}
-        </>
+      {isLoading && <Loading />}
+      {isError && (
+        <Error error={error} reset={() => fetchNotes(search, page, tag)} />
       )}
+      {data?.notes && totalNotes > 0 && <NoteList notes={data?.notes} />}
     </div>
   );
 }

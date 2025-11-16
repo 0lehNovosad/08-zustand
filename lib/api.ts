@@ -1,61 +1,60 @@
-import api from "./api/axios";
-import axios from "axios"; // ← добавь
-import type { Note } from "@/types/note";
+// lib/api.ts
 
-export interface PaginatedNotesResponse {
+import axios from 'axios';
+import { Note } from '../types/note';
+interface FetchNotesResponse {
   notes: Note[];
   totalPages: number;
 }
-export interface NotesQueryParams {
-  q?: string;
-  page?: number;
-  tag?: string;
-}
-export type CreateNotePayload = Pick<Note, "title" | "content" | "tag">;
-export type UpdateNotePayload = Partial<
-  Pick<Note, "title" | "content" | "tag">
->;
 
-export async function fetchNotes(params: NotesQueryParams = {}) {
-  const { q, page, tag } = params;
-  const qs: Record<string, string | number | undefined> = {
-    q,
-    page,
-    ...(tag ? { tag } : {}),
-  };
-  const { data } = await api.get<PaginatedNotesResponse>("/notes", {
-    params: qs,
+export interface CreateNoteData {
+  title: string;
+  tag: 'Todo' | 'Work' | 'Personal' | 'Meeting' | 'Shopping';
+  content: string;
+}
+
+axios.defaults.baseURL = 'https://notehub-public.goit.study/api';
+axios.defaults.headers.common['Authorization'] =
+  process.env.NEXT_PUBLIC_NOTEHUB_TOKEN;
+
+export const fetchNotes = async (
+  search: string,
+  page: number,
+  tag: string,
+  perPage: number = 12
+): Promise<FetchNotesResponse> => {
+  const searchQuery = search ? search : '';
+
+  const params = tag
+    ? {
+        search: searchQuery,
+        tag,
+        page,
+        perPage,
+      }
+    : {
+        search: searchQuery,
+        page,
+        perPage,
+      };
+
+  const response = await axios.get<FetchNotesResponse>('/notes', {
+    params,
   });
-  return data;
-}
+  return response.data;
+};
 
-export async function fetchNoteById(id: string): Promise<Note> {
-  const { data } = await api.get<Note>(`/notes/${id}`);
-  return data;
-}
+export const createNote = async (newNote: CreateNoteData): Promise<Note> => {
+  const response = await axios.post<Note>('/notes', newNote);
+  return response.data;
+};
 
-export async function createNote(payload: CreateNotePayload): Promise<Note> {
-  const { data } = await api.post<Note>("/notes", payload);
-  return data;
-}
+export const deleteNote = async (id: Note['id']): Promise<Note> => {
+  const response = await axios.delete<Note>(`/notes/${id}`);
+  return response.data;
+};
 
-export async function updateNote(
-  id: string,
-  patch: UpdateNotePayload,
-): Promise<Note> {
-  const { data } = await api.patch<Note>(`/notes/${id}`, patch);
-  return data;
-}
-
-export async function deleteNote(id: string): Promise<void> {
-  try {
-    await api.delete<void>(`/notes/${id}`); // основной путь
-  } catch (e) {
-    // fallback на коллекционный DELETE /api/notes?id=...
-    if (axios.isAxiosError(e) && e.response?.status === 405) {
-      await api.delete<void>("/notes", { params: { id } });
-    } else {
-      throw e;
-    }
-  }
-}
+export const fetchNoteById = async (id: Note['id']): Promise<Note> => {
+  const response = await axios.get<Note>(`/notes/${id}`);
+  return response.data;
+};

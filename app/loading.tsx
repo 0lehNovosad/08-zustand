@@ -1,5 +1,7 @@
-import Loader from "@/components/Loader/Loader";
+// app/loading.tsx
 
-export default function LoadingNotes() {
-  return <Loader />;
-}
+const Loading = () => {
+  return <p>Loading, please wait...</p>;
+};
+
+export default Loading;

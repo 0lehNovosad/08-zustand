@@ -1,63 +1,46 @@
-"use client";
+import css from './Modal.module.css';
+import { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
-import { ReactNode, useEffect } from "react";
-import css from "./Modal.module.css";
-
-export default function Modal({
-  open,
-  onClose,
-  children,
-}: {
-  open: boolean;
+interface ModalProps {
   onClose: () => void;
-  children: ReactNode;
-}) {
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    if (typeof window !== "undefined") {
-      window.addEventListener("keydown", onKey);
+  children: React.ReactNode;
+}
+
+export default function Modal({ onClose, children }: ModalProps) {
+  const handleModalBackdropClick = (
+    event: React.MouseEvent<HTMLDivElement>
+  ) => {
+    if (event.target === event.currentTarget) {
+      onClose();
     }
-    return () => {
-      if (typeof window !== "undefined") {
-        window.removeEventListener("keydown", onKey);
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (ev: KeyboardEvent) => {
+      if (ev.key === 'Escape') {
+        onClose();
       }
     };
-  }, [open, onClose]);
 
-  if (!open) return null;
+    document.addEventListener('keydown', handleKeyDown);
+    document.body.style.overflow = 'hidden';
 
-  const stop = (e: React.MouseEvent<HTMLDivElement>) => e.stopPropagation();
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = '';
+    };
+  }, [onClose]);
 
-  return (
+  return createPortal(
     <div
       className={css.backdrop}
-      onClick={onClose}
       role="dialog"
       aria-modal="true"
+      onClick={handleModalBackdropClick}
     >
-      <div className={css.modal} onClick={stop}>
-        <button
-          onClick={onClose}
-          aria-label="Close"
-          style={{
-            position: "absolute",
-            top: 10,
-            right: 12,
-            background: "transparent",
-            border: "none",
-            fontSize: 20,
-            color: "#6c757d",
-            cursor: "pointer",
-            lineHeight: 1,
-          }}
-        >
-          ×
-        </button>
-        {children}
-      </div>
-    </div>
+      <div className={css.modal}>{children}</div>
+    </div>,
+    document.body
   );
 }

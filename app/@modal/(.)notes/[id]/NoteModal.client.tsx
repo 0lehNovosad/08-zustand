@@ -9,7 +9,6 @@ import NotePreview from "@/components/NotePreview/NotePreview";
 
 export default function NoteModalClient({ id }: { id: string }) {
   const router = useRouter();
-
   const { data, isLoading, isError, error } = useQuery<Note>({
     queryKey: ["note", id],
     queryFn: () => fetchNoteById(id),
@@ -20,7 +19,7 @@ export default function NoteModalClient({ id }: { id: string }) {
   return (
     <Modal open onClose={() => router.back()}>
       {isLoading ? (
-        <p style={{ padding: 16, fontSize: 22 }}>Loading...</p>
+        <p style={{ padding: 16, fontSize: 18 }}>Loading...</p>
       ) : isError ? (
         <div style={{ padding: 16 }}>
           <button
@@ -30,14 +29,11 @@ export default function NoteModalClient({ id }: { id: string }) {
               border: "none",
               textDecoration: "underline",
               cursor: "pointer",
-              padding: 0,
-              marginBottom: 8,
             }}
-            aria-label="Close"
           >
             ← Back
           </button>
-          <p style={{ color: "#b91c1c" }}>
+          <p style={{ marginTop: 12, color: "#b91c1c" }}>
             {(error as Error)?.message ?? "Failed to load note"}
           </p>
         </div>

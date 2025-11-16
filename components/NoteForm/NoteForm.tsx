@@ -2,63 +2,62 @@
 
 import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, ChangeEvent, FormEvent } from "react";
-import { createNote } from "@/lib/api";
-import { useNoteStore } from "@/lib/store/noteStore";
+import { createNote, type CreateNotePayload } from "@/lib/api";
 import css from "./NoteForm.module.css";
+import { useNoteStore, type Tag } from "@/lib/store/noteStore";
 
 export default function NoteForm() {
   const router = useRouter();
   const qc = useQueryClient();
   const { draft, setDraft, clearDraft } = useNoteStore();
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const mutation = useMutation({
-    mutationFn: createNote,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["notes"] });
+  // Мутация создания + инвалидация кеша ["notes"]
+  const {
+    mutateAsync: createAsync,
+    isPending,
+    isError,
+    error,
+  } = useMutation({
+    mutationFn: (payload: CreateNotePayload) => createNote(payload),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["notes"] });
     },
   });
 
-  const handleChange = (
-    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
-  ) => {
-    const { name, value } = e.target;
-    setDraft({ [name]: value });
-  };
+  // Нативная HTML-форма: form action
+  async function handleSubmit(formData: FormData) {
+    const payload: CreateNotePayload = {
+      title: String(formData.get("title") || "").trim(),
+      content: String(formData.get("content") || "").trim(),
+      tag: String(formData.get("tag") || "Todo"),
+    };
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
+    if (!payload.title) return;
+
     try {
-      await mutation.mutateAsync({
-        title: draft.title,
-        content: draft.content,
-        tag: draft.tag,
-      });
-      clearDraft();        // очистити draft лише після успішного створення
-      router.back();       // повернутися на попередню сторінку
-    } catch (err) {
-      console.error("Failed to create note:", err);
-    } finally {
-      setIsSubmitting(false);
+      await createAsync(payload);
+      clearDraft(); // очистить draft ТОЛЬКО при успехе
+      router.back(); // вернуться на предыдущий маршрут
+    } catch {
+      // Ошибку покажем ниже (isError + error.message)
     }
-  };
+  }
 
-  const handleCancel = () => {
-    router.back(); // draft НЕ очищаємо — так вимагає ТЗ
+  const handleTagChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setDraft({ tag: e.target.value as Tag });
   };
 
   return (
-    <form onSubmit={handleSubmit} className={css.form}>
+    <form action={handleSubmit} className={css.form}>
       <div className={css.formGroup}>
         <label htmlFor="title">Title</label>
         <input
           id="title"
           name="title"
-          value={draft.title}
-          onChange={handleChange}
           className={css.input}
+          value={draft.title}
+          onChange={(e) => setDraft({ title: e.target.value })}
+          placeholder="Enter title"
           required
         />
       </div>
@@ -68,46 +67,48 @@ export default function NoteForm() {
         <textarea
           id="content"
           name="content"
-          value={draft.content}
-          onChange={handleChange}
           className={css.textarea}
-          rows={6}
-          required
+          value={draft.content}
+          onChange={(e) => setDraft({ content: e.target.value })}
+          placeholder="Enter content"
         />
       </div>
 
       <div className={css.formGroup}>
         <label htmlFor="tag">Tag</label>
         <select
-  id="tag"
-  name="tag"
-  value={draft.tag}
-  onChange={handleChange}
-  className={css.select}
->
-  <option value="Work">Work</option>
-  <option value="Personal">Personal</option>
-  <option value="Todo">Todo</option>
-  <option value="Meeting">Meeting</option>
-  <option value="Shopping">Shopping</option>
-</select>
+          id="tag"
+          name="tag"
+          className={css.select}
+          value={draft.tag}
+          onChange={handleTagChange}
+        >
+          <option value="Todo">Todo</option>
+          <option value="Work">Work</option>
+          <option value="Personal">Personal</option>
+          <option value="Meeting">Meeting</option>
+          <option value="Shopping">Shopping</option>
+        </select>
       </div>
 
+      {isError && (
+        <p className={css.error}>
+          {(error as Error)?.message ?? "Failed to create note"}
+        </p>
+      )}
+
       <div className={css.actions}>
+        {/* Cancel: НЕ очищает draft, только назад */}
         <button
           type="button"
           className={css.cancelButton}
-          onClick={handleCancel}
-          disabled={isSubmitting}
+          onClick={() => router.back()}
+          disabled={isPending}
         >
           Cancel
         </button>
-        <button
-          type="submit"
-          className={css.submitButton}
-          disabled={isSubmitting}
-        >
-          {isSubmitting ? "Creating..." : "Create note"}
+        <button type="submit" className={css.submitButton} disabled={isPending}>
+          {isPending ? "Creating..." : "Create"}
         </button>
       </div>
     </form>

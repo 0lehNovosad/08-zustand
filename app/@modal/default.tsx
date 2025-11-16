@@ -1,4 +1,3 @@
-export default function ModalDefault() {
-  // коли модальне вікно неактивне — нічого не показуємо
+export default function ModalSlotDefault() {
   return null;
 }

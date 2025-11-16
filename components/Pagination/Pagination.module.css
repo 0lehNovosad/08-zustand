@@ -2,10 +2,9 @@
   display: flex;
   justify-content: center;
   gap: 4px;
-  margin: 16px 0;
+  margin: 16px 0; /* оставляем нужный отступ */
   list-style: none;
   padding: 0;
-  margin: 0;
 }
 
 .pagination li {
@@ -14,7 +13,9 @@
   cursor: pointer;
   min-width: 36px;
   height: 36px;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
 }
 
 .pagination li a {
@@ -31,7 +32,6 @@
 .pagination li:hover {
   background-color: #e9ecef;
 }
-
 .pagination li.active:hover {
   background-color: #0d6efd;
 }
@@ -40,8 +40,12 @@
   background-color: #0d6efd;
   border-color: #0d6efd;
 }
-
 .active a {
   color: #fff !important;
   font-weight: 500;
+}
+
+.disabled {
+  opacity: 0.5;
+  pointer-events: none;
 }

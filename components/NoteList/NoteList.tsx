@@ -8,13 +8,9 @@ import css from "./NoteList.module.css";
 
 export interface NoteListProps {
   notes: Note[];
-  enableDelete?: boolean;
 }
 
-export default function NoteList({
-  notes,
-  enableDelete = true,
-}: NoteListProps) {
+export default function NoteList({ notes }: NoteListProps) {
   const qc = useQueryClient();
 
   const {
@@ -24,12 +20,11 @@ export default function NoteList({
     isError,
     error,
   } = useMutation({
-    mutationFn: (id: string | number) => deleteNote(String(id)),
+    mutationFn: (id: string) => deleteNote(id),
 
-    
-    onMutate: async (id: string | number) => {
+    // оптимистичное обновление — вырезаем карточку из всех кэшей ["notes", ...]
+    onMutate: async (id: string) => {
       await qc.cancelQueries({ queryKey: ["notes"] });
-
       const prev = qc.getQueriesData<PaginatedNotesResponse>({
         queryKey: ["notes"],
       });
@@ -38,33 +33,34 @@ export default function NoteList({
         if (!data) return;
         qc.setQueryData<PaginatedNotesResponse>(key, {
           ...data,
-          notes: data.notes.filter((n) => String(n.id) !== String(id)),
+          notes: data.notes.filter((n) => n.id !== id),
         });
       });
 
       return { prev };
     },
 
-    
+    // откат при ошибке
     onError: (_err, _id, ctx) => {
-      if (!ctx?.prev) return;
-      ctx.prev.forEach(([key, data]) => {
-        qc.setQueryData(key, data);
-      });
+      if (ctx?.prev) {
+        ctx.prev.forEach(([key, data]) => {
+          qc.setQueryData(key, data);
+        });
+      }
     },
 
-    
+    // на всякий — инвалидация, чтобы подтянуть актуальный список
     onSettled: () => {
       qc.invalidateQueries({ queryKey: ["notes"] });
     },
   });
 
-  if (!notes?.length) return <p>No notes found.</p>;
+  if (!notes?.length) return null;
 
   return (
     <ul className={css.list}>
       {notes.map((n) => {
-        const pending = isPending && String(deletingId) === String(n.id);
+        const pending = isPending && deletingId === n.id;
 
         return (
           <li key={n.id} className={css.listItem}>
@@ -72,36 +68,27 @@ export default function NoteList({
             <p className={css.content}>{n.content}</p>
 
             <div className={css.footer}>
-              
-              <div className={css.tagsContainer}>
-  {n.tag ? (
-    <span className={css.tag} title={n.tag}>
-      {n.tag}
-    </span>
-  ) : (
-    <span className={css.tag}>No tag</span>
-  )}
-</div>
+              <span className={css.tag} title={n.tag}>
+                {n.tag}
+              </span>
 
               <div style={{ display: "flex", gap: 8 }}>
                 <Link className={css.link} href={`/notes/${n.id}`}>
                   View details
                 </Link>
 
-                {enableDelete && (
-                  <button
-                    className={css.button}
-                    onClick={() => mutate(n.id)}
-                    disabled={pending}
-                    aria-busy={pending}
-                  >
-                    {pending ? "Deleting..." : "Delete"}
-                  </button>
-                )}
+                <button
+                  className={css.button}
+                  onClick={() => mutate(n.id)}
+                  disabled={pending}
+                  aria-busy={pending}
+                >
+                  {pending ? "Deleting..." : "Delete"}
+                </button>
               </div>
             </div>
 
-            {isError && String(deletingId) === String(n.id) && (
+            {isError && deletingId === n.id && (
               <p className={css.error}>
                 {(error as Error)?.message ?? "Failed to delete note"}
               </p>

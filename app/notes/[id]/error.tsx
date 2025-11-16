@@ -1,5 +1,9 @@
-'use client';
+"use client";
+
+import ErrorMessage from "@/components/ErrorMessage/ErrorMessage";
 
 export default function NoteDetailsError({ error }: { error: Error }) {
-  return <p>Could not fetch note details. {error.message}</p>;
+  return (
+    <ErrorMessage message={`Could not fetch note details. ${error.message}`} />
+  );
 }

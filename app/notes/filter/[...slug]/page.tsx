@@ -1,10 +1,13 @@
-import { notFound } from "next/navigation";
-import { QueryClient, dehydrate, HydrationBoundary } from "@tanstack/react-query";
+import {
+  dehydrate,
+  HydrationBoundary,
+  QueryClient,
+} from "@tanstack/react-query";
 import { fetchNotes } from "@/lib/api";
-import type { Metadata } from "next";
 import NotesClient from "./Notes.client";
+import type { Metadata } from "next";
 
-const VALID_TAGS = ["all", "work", "personal", "todo", "meeting", "shopping"];
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
 export async function generateMetadata({
   params,
@@ -12,13 +15,12 @@ export async function generateMetadata({
   params: Promise<{ slug?: string[] }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const tag = slug?.[0]?.toLowerCase() ?? "all";
-  const filterName = tag === "all" ? "All notes" : `Filtered by ${tag}`;
-  const title = `NoteHub — ${filterName}`;
-  const description = `Browse your ${filterName.toLowerCase()} in NoteHub.`;
-  const url = `${
-    process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"
-  }/notes/filter/${tag}`;
+  const tagRaw = slug?.[0] ?? "All";
+  const title = `NoteHub — ${tagRaw} notes`;
+  const description =
+    tagRaw === "All"
+      ? "Browse all notes in NoteHub."
+      : `Browse notes filtered by tag "${tagRaw}".`;
 
   return {
     title,
@@ -26,7 +28,7 @@ export async function generateMetadata({
     openGraph: {
       title,
       description,
-      url,
+      url: `${SITE_URL}/notes/filter/${tagRaw}`,
       images: [
         {
           url: "https://ac.goit.global/fullstack/react/notehub-og-meta.jpg",
@@ -39,8 +41,6 @@ export async function generateMetadata({
   };
 }
 
-// -------------------------------------------------------------
-
 export default async function FilterPage({
   params,
   searchParams,
@@ -48,14 +48,11 @@ export default async function FilterPage({
   params: Promise<{ slug?: string[] }>;
   searchParams: Promise<{ q?: string; page?: string }>;
 }) {
-  // ✅ розпаковуємо проміси
   const { slug } = await params;
   const sp = await searchParams;
 
-  const tagRaw = slug?.[0]?.toLowerCase() ?? "all";
-  if (!VALID_TAGS.includes(tagRaw)) notFound();
-
-  const tag = tagRaw === "all" ? undefined : tagRaw;
+  const tagRaw = slug?.[0] ?? "All";
+  const tag = tagRaw === "All" ? undefined : tagRaw;
   const q = typeof sp?.q === "string" ? sp.q : "";
   const page = sp?.page ? Number(sp.page) : 1;
 
@@ -67,7 +64,7 @@ export default async function FilterPage({
 
   return (
     <HydrationBoundary state={dehydrate(qc)}>
-      <NotesClient tag={tag ?? null} />
+      <NotesClient initialQ={q} initialPage={page} tag={tag ?? null} />
     </HydrationBoundary>
   );
 }

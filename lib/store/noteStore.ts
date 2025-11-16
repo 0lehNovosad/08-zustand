@@ -1,37 +1,35 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-type NoteTag = "Work" | "Personal" | "Todo" | "Meeting" | "Shopping";
+export type Tag = "Todo" | "Work" | "Personal" | "Meeting" | "Shopping";
 
-interface Draft {
+export type Draft = {
   title: string;
   content: string;
-  tag: NoteTag;
-}
+  tag: Tag;
+};
 
-interface NoteStore {
-  draft: Draft;
-  setDraft: (note: Partial<Draft>) => void;
-  clearDraft: () => void;
-}
-
-const initialDraft: Draft = {
+export const initialDraft: Draft = {
   title: "",
   content: "",
-  tag: "Todo", // виправлено: було "Work"
+  tag: "Todo",
+};
+
+type NoteStore = {
+  draft: Draft;
+  setDraft: (patch: Partial<Draft>) => void;
+  clearDraft: () => void;
 };
 
 export const useNoteStore = create<NoteStore>()(
   persist(
     (set) => ({
       draft: initialDraft,
-      setDraft: (note) =>
-        set((state) => ({ draft: { ...state.draft, ...note } })),
+      setDraft: (patch) => set((s) => ({ draft: { ...s.draft, ...patch } })),
       clearDraft: () => set({ draft: initialDraft }),
     }),
     {
-      name: "note-draft-storage",
-      partialize: (state) => ({ draft: state.draft }), //  зберігається лише draft
-    }
-  )
+      name: "notehub-draft", // localStorage key
+    },
+  ),
 );

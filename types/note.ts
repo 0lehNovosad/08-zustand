@@ -1,16 +1,8 @@
-export type NoteTag = 'Todo' | 'Work' | 'Personal' | 'Meeting' | 'Shopping';
-
 export interface Note {
-  id: string;
+  id: string; // ✅ string вместо number
   title: string;
   content: string;
-  tag: NoteTag;
+  tag: string;
   createdAt: string;
   updatedAt: string;
-}
-
-export interface CreateNoteDto {
-  title: string;
-  content: string;
-  tag: NoteTag;
 }

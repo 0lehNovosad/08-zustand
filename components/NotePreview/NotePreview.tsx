@@ -1,26 +1,48 @@
+"use client";
+
 import type { Note } from "@/types/note";
+import { formatDateUTC } from "@/lib/format";
 import css from "./NotePreview.module.css";
 
-interface NotePreviewProps {
-  note: Note | null;
-  onBack: () => void;
+export interface NotePreviewProps {
+  note?: Note | null;
+  onBack?: () => void;
 }
 
 export default function NotePreview({ note, onBack }: NotePreviewProps) {
-  if (!note) return <p>Note not found.</p>;
+  if (!note) {
+    return (
+      <div className={css.container}>
+        <div className={css.item}>
+          {onBack && (
+            <button className={css.backBtn} onClick={onBack}>
+              ← Back
+            </button>
+          )}
+          <p className={css.content}>Note not found.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className={css.preview}>
-      <button onClick={onBack} className={css.backBtn}>
-        ← Back
-      </button>
+    <div className={css.container}>
+      <div className={css.item}>
+        {onBack && (
+          <button className={css.backBtn} onClick={onBack}>
+            ← Back
+          </button>
+        )}
 
-      <h2 className={css.title}>{note.title}</h2>
-      <p className={css.content}>{note.content}</p>
+        <div className={css.header}>
+          <h2>{note.title}</h2>
+          <span className={css.tag} title={note.tag}>
+            {note.tag}
+          </span>
+        </div>
 
-      <div className={css.meta}>
-        <small>Created: {new Date(note.createdAt).toLocaleString()}</small>
-        <small>Updated: {new Date(note.updatedAt).toLocaleString()}</small>
+        <p className={css.content}>{note.content}</p>
+        <p className={css.date}>{formatDateUTC(note.createdAt)}</p>
       </div>
     </div>
   );

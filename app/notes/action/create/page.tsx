@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
+import css from "./page.module.css";
 import NoteForm from "@/components/NoteForm/NoteForm";
-import css from "./CreateNote.module.css";
 
-const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
 export const metadata: Metadata = {
   title: "NoteHub — Create note",

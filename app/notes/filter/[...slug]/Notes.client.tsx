@@ -1,98 +1,73 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useQuery, keepPreviousData } from "@tanstack/react-query";
-import { useDebounce } from "use-debounce";
-import NoteList from "@/components/NoteList/NoteList";
-import Pagination from "@/components/Pagination/Pagination";
+import { useEffect, useState } from "react";
+import {
+  keepPreviousData,
+  useQuery,
+} from "@tanstack/react-query";
+import { fetchNotes, type PaginatedNotesResponse } from "@/lib/api";
 import SearchBox from "@/components/SearchBox/SearchBox";
-import { fetchNotes } from "@/lib/api";
-import css from './NotesPage.module.css'
-import type { FetchNotesResponse } from "@/lib/api";
-import { Toaster, toast } from "react-hot-toast";
-import { NoteTag } from "@/types/note";
+import Pagination from "@/components/Pagination/Pagination";
+import NoteList from "@/components/NoteList/NoteList";
 import Link from "next/link";
+import css from "./NotesPage.module.css";
 
-const PER_PAGE = 12;
-
-interface NotesClientProps {
-  initialData: FetchNotesResponse;
-  tag?: NoteTag;
-}
-
-const NotesClient: React.FC<NotesClientProps> = ({ initialData, tag }) => {
-  const [page, setPage] = useState(1);
-  const [pageCount, setPageCount] = useState(initialData.totalPages);
+export default function NotesClient({ tag }: { tag: string | null }) {
   const [search, setSearch] = useState("");
-  const [debouncedSearch] = useDebounce(search, 500);
-  
-  const { data, isLoading, isError, error } = useQuery<FetchNotesResponse | null, Error>({
-    queryKey: ["notes", page, PER_PAGE, debouncedSearch, tag],
-    queryFn: () => fetchNotes({
-      page,
-      perPage: PER_PAGE,
-      search: debouncedSearch,
-      ...(tag ? { tag } : {}) 
-    }),
+  const [debouncedQ, setDebouncedQ] = useState("");
+  const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedQ(search.trim());
+      setPage(1);
+    }, 400);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const { data, isLoading, error } = useQuery<PaginatedNotesResponse>({
+    queryKey: ["notes", { q: debouncedQ, page, tag: tag ?? "" }],
+    queryFn: () => fetchNotes({ q: debouncedQ, page, tag: tag ?? undefined }),
     placeholderData: keepPreviousData,
-    initialData: page === 1 && !debouncedSearch ? initialData : undefined,
+    refetchOnWindowFocus: false,
   });
 
+  if (isLoading) return <p>Loading, please wait...</p>;
+  if (error)
+    return <p>Could not fetch the list of notes. {(error as Error).message}</p>;
 
-
-  useEffect(() => {
-    if (data?.totalPages !== undefined) {
-      setPageCount(data.totalPages);
-    }
-  }, [data]);
-
-  useEffect(() => {
-    setPage(1);
-  }, [debouncedSearch]);
-
-  useEffect(() => {
-    if (isError && error) {
-      if (error.message.includes('Access token is missing or empty')) {
-        toast.error(error.message);
-      } else if (error.message.includes("Failed to execute 'setRequestHeader'")) {
-        toast.error("Invalid token. Please check your settings or update the token.");
-      }
-    }
-  }, [isError, error]);
-
-
+  const notes = data?.notes ?? [];
+  const totalPages = data?.totalPages ?? 1;
 
   return (
     <div className={css.app}>
-      <Toaster position="top-center" />
-      <header className={css.toolbar}>
-        <SearchBox value={search} onChange={setSearch} />
+      <div className={css.toolbar}>
+        <div style={{ flex: "1 1 520px", maxWidth: 520 }}>
+          <SearchBox onSearch={(query) => setSearch(query)} />
+        </div>
 
-        {pageCount > 1 && (
-          <Pagination page={page} setPage={setPage} pageCount={pageCount} />
-        )}
-
+        
         <Link href="/notes/action/create" className={css.button}>
-          Create note +
+        Create note
         </Link>
-      </header>
+      </div>
 
-      {isLoading && <p>Loading notes...</p>}
-      {isError && error &&
-        !error.message.includes('Access token is missing or empty') &&
-        !error.message.includes("Failed to execute 'setRequestHeader'") && (
-          <p className={css.error}>{error.message}</p>
-        )}
-      {!isLoading && !isError && data && data.notes && data.notes.length === 0 && <p>No notes found</p>} 
-      {!isLoading && !isError && data && data.notes && data.notes.length > 0 && (
-        <NoteList
-          notes={data.notes}
-        />
+      {notes.length === 0 ? (
+        <p>No notes found.</p>
+      ) : (
+        <>
+          <NoteList notes={notes} />
+          {totalPages > 1 && (
+            <div className={css.paginationWrap}>
+              <Pagination
+                totalPages={totalPages}
+                currentPage={page}
+                onPageChange={(p) => setPage(p)}
+              />
+            </div>
+          )}
+        </>
       )}
-
-
     </div>
   );
-};
-
-export default NotesClient; 
+}

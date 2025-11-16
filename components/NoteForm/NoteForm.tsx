@@ -1,57 +1,65 @@
 "use client";
 
-import css from "./NoteForm.module.css";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createNote, type CreateNoteData } from "@/lib/api";
-import { useNoteStore } from "@/lib/store/noteStore";
 import { useRouter } from "next/navigation";
-import { NoteTag } from "@/types/note";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, ChangeEvent, FormEvent } from "react";
+import { createNote } from "@/lib/api";
+import { useNoteStore } from "@/lib/store/noteStore";
+import css from "./NoteForm.module.css";
 
 export default function NoteForm() {
-  const queryClient = useQueryClient();
   const router = useRouter();
-
+  const qc = useQueryClient();
   const { draft, setDraft, clearDraft } = useNoteStore();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const mutation = useMutation({
     mutationFn: createNote,
     onSuccess: () => {
-      clearDraft();       
-      router.back();      
-      queryClient.invalidateQueries({ queryKey: ["notes"] });
+      qc.invalidateQueries({ queryKey: ["notes"] });
     },
   });
 
-
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
-    const updated: CreateNoteData = { ...draft, [name]: value as NoteTag };
-    setDraft(updated);
+    setDraft({ [name]: value });
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    mutation.mutate(draft);
+    setIsSubmitting(true);
+    try {
+      await mutation.mutateAsync({
+        title: draft.title,
+        content: draft.content,
+        tag: draft.tag,
+      });
+      clearDraft();        // очистити draft лише після успішного створення
+      router.back();       // повернутися на попередню сторінку
+    } catch (err) {
+      console.error("Failed to create note:", err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleCancel = () => router.back();
+  const handleCancel = () => {
+    router.back(); // draft НЕ очищаємо — так вимагає ТЗ
+  };
 
   return (
-    <form className={css.form} onSubmit={handleSubmit}>
+    <form onSubmit={handleSubmit} className={css.form}>
       <div className={css.formGroup}>
         <label htmlFor="title">Title</label>
         <input
           id="title"
           name="title"
-          type="text"
-          className={css.input}
           value={draft.title}
           onChange={handleChange}
+          className={css.input}
           required
-          minLength={3}
-          maxLength={50}
         />
       </div>
 
@@ -60,44 +68,47 @@ export default function NoteForm() {
         <textarea
           id="content"
           name="content"
-          rows={8}
-          className={css.textarea}
           value={draft.content}
           onChange={handleChange}
-          maxLength={500}
+          className={css.textarea}
+          rows={6}
+          required
         />
       </div>
 
       <div className={css.formGroup}>
         <label htmlFor="tag">Tag</label>
         <select
-          id="tag"
-          name="tag"
-          className={css.select}
-          value={draft.tag}
-          onChange={handleChange}
-          required
-        >
-          <option value="Todo">Todo</option>
-          <option value="Work">Work</option>
-          <option value="Personal">Personal</option>
-          <option value="Meeting">Meeting</option>
-          <option value="Shopping">Shopping</option>
-        </select>
+  id="tag"
+  name="tag"
+  value={draft.tag}
+  onChange={handleChange}
+  className={css.select}
+>
+  <option value="Work">Work</option>
+  <option value="Personal">Personal</option>
+  <option value="Todo">Todo</option>
+  <option value="Meeting">Meeting</option>
+  <option value="Shopping">Shopping</option>
+</select>
       </div>
 
       <div className={css.actions}>
-        <button type="button" onClick={handleCancel} className={css.cancelButton}>
+        <button
+          type="button"
+          className={css.cancelButton}
+          onClick={handleCancel}
+          disabled={isSubmitting}
+        >
           Cancel
         </button>
         <button
-        type="submit"
-        disabled={mutation.status === "pending"}
-        className={css.submitButton}
->
-      {mutation.status === "pending" ? "Creating..." : "Create note"}
-      </button>
-
+          type="submit"
+          className={css.submitButton}
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? "Creating..." : "Create note"}
+        </button>
       </div>
     </form>
   );

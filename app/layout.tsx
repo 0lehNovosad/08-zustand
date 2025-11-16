@@ -1,52 +1,60 @@
-import type { Metadata } from "next";
+import type { ReactNode } from 'react';
+import type { Metadata } from 'next';
 import { Roboto } from 'next/font/google';
-
-import "./globals.css";
-import Header from "@/components/Header/Header";
-import Footer from "@/components/Footer/Footer";
-import QueryProvider from "@/components/TanStackProvider/TanStackProvider";
-
+import { SITE } from '@/lib/config';
+import { TanStackProvider } from '@/components/TanStackProvider/TanStackProvider';
+import Header from '@/components/Header/Header';
+import { Footer } from '@/components/Footer/Footer';
+import './globals.css';
 
 const roboto = Roboto({
-  subsets: ['latin'], 
-  weight: ['400', '700'],
-  variable: '--font-roboto', 
-  display: 'swap', 
+  subsets: ['latin', 'cyrillic'],
+  weight: ['400', '500', '700'],
+  variable: '--font-roboto',
+  display: 'swap',
 });
 
 export const metadata: Metadata = {
-  title: "NoteHub - Your notes online",
-  description: "NoteHub – save, edit and organise your notes quickly and conveniently.",
+  title: SITE.name,
+  description: SITE.description,
+  metadataBase: new URL(SITE.baseUrl),
   openGraph: {
-    title: "NoteHub - Your notes online",
-    description: "NoteHub – save, edit and organise your notes quickly and conveniently.",
-    images: [{
-      url: 'https://ac.goit.global/fullstack/react/notehub-og-meta.jpg',
-      alt: 'NoteHub',
-      width: 1200,
-      height: 630,
-  }]
-  }
+    title: SITE.name,
+    description: SITE.description,
+    url: SITE.baseUrl,
+    images: [{ url: SITE.ogImage }],
+    siteName: SITE.name,
+    type: 'website',
+  },
 };
 
 export default function RootLayout({
   children,
-  modal
-}: Readonly<{
-  children: React.ReactNode;
-  modal: React.ReactNode
-}>) {
+  modal,
+}: {
+  children: ReactNode;
+  modal: ReactNode;
+}) {
   return (
     <html lang="en">
-      <body className={`${roboto.variable}`}>
-        <QueryProvider>
-        <Header/>
-        {children}
-        {modal}
-        <Footer/>
-        </QueryProvider>
-        <div id="modal-root" />
-        
+      <body className={roboto.variable}>
+        <TanStackProvider>
+          <div
+            style={{
+              minHeight: '100vh',
+              display: 'flex',
+              flexDirection: 'column',
+              backgroundColor: '#f8f9fa',
+            }}
+          >
+            <Header />
+            <main style={{ flex: 1, position: 'relative' }}>
+              {children}
+              {modal}
+            </main>
+            <Footer />
+          </div>
+        </TanStackProvider>
       </body>
     </html>
   );

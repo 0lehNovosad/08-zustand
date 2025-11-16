@@ -1,69 +1,63 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { createPortal } from "react-dom";
+
+import { ReactNode, useEffect } from "react";
 import css from "./Modal.module.css";
 
-interface ModalProps {
-  onClose?: () => void;
-  children: React.ReactNode;
-}
-
-const Modal: React.FC<ModalProps> = ({ onClose, children }) => {
-  const [modalRoot, setModalRoot] = useState<HTMLElement | null>(null);
-  const router = useRouter();
-
-  const handleClose = useCallback(() => {
-    if (onClose) {
-      onClose();
-    } else {
-      router.back();
-    }
-  }, [onClose, router]);
-
+export default function Modal({
+  open,
+  onClose,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  children: ReactNode;
+}) {
   useEffect(() => {
-    setModalRoot(document.getElementById("modal-root"));
-
-    document.body.classList.add("modal-open");
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        handleClose();
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    if (typeof window !== "undefined") {
+      window.addEventListener("keydown", onKey);
+    }
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("keydown", onKey);
       }
     };
+  }, [open, onClose]);
 
-    window.addEventListener("keydown", handleKeyDown);
+  if (!open) return null;
 
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      document.body.classList.remove("modal-open");
-    };
-  }, [handleClose]);
+  const stop = (e: React.MouseEvent<HTMLDivElement>) => e.stopPropagation();
 
-  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget) {
-      handleClose();
-    }
-  };
-
-  if (!modalRoot) return null;
-
-  return createPortal(
+  return (
     <div
       className={css.backdrop}
+      onClick={onClose}
       role="dialog"
       aria-modal="true"
-      onClick={handleBackdropClick}
     >
-      <div
-        className={css.modal}
-        onClick={(e) => e.stopPropagation()} 
-      >
+      <div className={css.modal} onClick={stop}>
+        <button
+          onClick={onClose}
+          aria-label="Close"
+          style={{
+            position: "absolute",
+            top: 10,
+            right: 12,
+            background: "transparent",
+            border: "none",
+            fontSize: 20,
+            color: "#6c757d",
+            cursor: "pointer",
+            lineHeight: 1,
+          }}
+        >
+          ×
+        </button>
         {children}
       </div>
-    </div>,
-    modalRoot
+    </div>
   );
-};
-
-export default Modal;
+}

@@ -1,82 +1,66 @@
-import axios from 'axios';
-import type { Note, NoteTag } from '../types/note';
+import axios from "axios";
+import type { AxiosInstance, AxiosResponse } from "axios";
+import type { Note, CreateNoteDto } from "@/types/note";
+export type CreateNotePayload = CreateNoteDto;
 
-export interface FetchNotesParams {
-    page?: number;
-    perPage?: number;
-    search?: string;
-    tag?: NoteTag;
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ?? "https://notehub-public.goit.study/api";
+const token = process.env.NEXT_PUBLIC_NOTEHUB_TOKEN;
+
+const instance: AxiosInstance = axios.create({
+  baseURL: API_URL,
+  headers: {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  },
+});
+
+export interface PaginatedNotesResponse {
+  notes: Note[];
+  totalPages: number;
 }
 
-export interface FetchNotesResponse {
-    notes: Note[];
-    totalPages: number;
+export interface NotesQueryParams {
+  q?: string;
+  page?: number;
+  tag?: string;
 }
 
-export interface CreateNoteData {
-    title: string;
-    content: string;
-    tag: NoteTag;
+export async function fetchNotes(
+  params: NotesQueryParams = {}
+): Promise<PaginatedNotesResponse> {
+  const { q, page = 1, tag } = params;
+
+  const queryParams = new URLSearchParams();
+  queryParams.set("page", String(page));
+  queryParams.set("perPage", "8");
+  if (q?.trim()) queryParams.set("search", q.trim());
+  if (tag && tag !== "all") {
+    const capitalizedTag = tag.charAt(0).toUpperCase() + tag.slice(1);
+    queryParams.set("tag", capitalizedTag);
+  }
+
+  const { data } = await instance.get<PaginatedNotesResponse>(
+    `/notes?${queryParams.toString()}`
+  );
+  return data;
 }
 
-const BASE_URL = 'https://notehub-public.goit.study/api';
-const TOKEN = process.env.NEXT_PUBLIC_NOTEHUB_TOKEN;
-
-function checkToken() {
-    if (!TOKEN || TOKEN.trim() === '') {
-    throw new Error('Access token is missing or empty. API calls will fail.');
-    }
-}
-
-export async function fetchNotes(params: FetchNotesParams = {}): Promise<FetchNotesResponse> {
-    checkToken();
-    const page = params.page ?? 1;
-    const perPage = params.perPage ?? 12;
-    const queryParams: Record<string, unknown> = {
-        page,
-        perPage,
-    };
-    if (params.search) {
-        queryParams.search = params.search;
-    }
-    if (params.tag) {
-        queryParams.tag = params.tag;
-    }
-
-    const response = await axios.get<FetchNotesResponse>(`${BASE_URL}/notes`, {
-        headers: {
-            Authorization: `Bearer ${TOKEN}`,
-        },
-        params: queryParams,
-    });
-    return response.data;
-}
-
-export async function createNote(data: CreateNoteData): Promise<Note> {
-    checkToken();
-    const response = await axios.post<Note>(`${BASE_URL}/notes`, data, {
-        headers: {
-            Authorization: `Bearer ${TOKEN}`,
-        },
-    });
-    return response.data;
-}
-
-export async function deleteNote(id: string): Promise<Note> {
-    checkToken();
-    const response = await axios.delete<Note>(`${BASE_URL}/notes/${id}`, {
-        headers: {
-            Authorization: `Bearer ${TOKEN}`,
-        },
-    });
-    return response.data;
-}
 export async function fetchNoteById(id: string): Promise<Note> {
-    checkToken();
-    const response = await axios.get<Note>(`${BASE_URL}/notes/${id}`, {
-    headers: {
-        Authorization: `Bearer ${TOKEN}`,
-    },
-    });
-    return response.data;
+  const { data } = await instance.get<Note>(`/notes/${id}`);
+  return data;
 }
+
+export async function createNote(payload: CreateNoteDto): Promise<Note> {
+  const { data } = await instance.post<
+    Note,
+    AxiosResponse<Note>,
+    CreateNoteDto
+  >("/notes", payload);
+  return data;
+}
+
+export const deleteNote = async (id: string): Promise<Note> => {
+  const { data } = await instance.delete<Note>(`/notes/${id}`);
+  return data;
+};
